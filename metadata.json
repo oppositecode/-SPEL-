@@ -1,0 +1,5 @@
+{
+  "name": "SpEL Injection Lab & Generator",
+  "description": "A comprehensive educational dashboard and code generator for a SpEL (Spring Expression Language) Injection vulnerability lab. Includes interactive simulations and full downloadable source code for Kali Linux deployment.",
+  "requestFramePermissions": []
+}
