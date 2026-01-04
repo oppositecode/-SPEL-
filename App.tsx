@@ -61,6 +61,24 @@ const KillChainStep: React.FC<{ number: string; title: string; desc: string; too
   </div>
 );
 
+const DocSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <section className="mb-12 border-b border-gray-800 pb-8">
+    <h2 className="text-2xl font-bold text-kali-blue mb-6 border-l-4 border-kali-blue pl-4">{title}</h2>
+    <div className="text-gray-300 leading-relaxed space-y-4">
+      {children}
+    </div>
+  </section>
+);
+
+const DiagramBox: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="my-6 border border-gray-700 bg-[#151515] rounded p-4">
+    <div className="flex justify-center items-center min-h-[200px] font-mono text-sm relative">
+      {children}
+    </div>
+    <p className="text-center text-xs text-gray-500 mt-4 font-serif italic">{title}</p>
+  </div>
+);
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
   
@@ -85,6 +103,7 @@ const App: React.FC = () => {
   // --- Nav Items ---
   const navItems = [
     { id: View.DASHBOARD, label: '任务简报 (Boot-to-Root)', icon: '⚡' },
+    { id: View.DESIGN_DOCS, label: '系统设计文档 (Report)', icon: '📑' },
     { id: View.BUILD_GUIDE, label: '部署真实靶场', icon: '💿' },
     { type: 'divider' },
     { id: View.LAB_DIRECT, label: '训练 1: 直接注入', icon: '🟢' },
@@ -93,7 +112,9 @@ const App: React.FC = () => {
     { id: View.LAB_BLIND, label: '训练 4: 盲注', icon: '🔴' },
     { id: View.LAB_RCE, label: 'Shell 模拟', icon: '💀' },
     { type: 'divider' },
-    { id: View.SOURCE_JAVA, label: '白盒源码', icon: '☕' },
+    { id: View.SOURCE_JAVA, label: '白盒源码 (Java)', icon: '☕' },
+    { id: View.SOURCE_DOCKER, label: '基础设施 (Docker)', icon: '🐳' },
+    { id: View.SOURCE_SCRIPTS, label: '提权脚本 (Bash)', icon: '📜' },
     { id: View.README, label: '完整攻略', icon: '📘' },
   ];
 
@@ -103,6 +124,7 @@ const App: React.FC = () => {
     try {
       if (directInput.trim() === '1+1') setDirectResult('2');
       else if (directInput.includes('Runtime')) setDirectResult('java.lang.ProcessImpl@6f7902');
+      else if (directInput.includes('ProcessBuilder')) setDirectResult('Error: EL1001E: Type conversion problem, cannot convert from java.lang.UNIXProcess to java.lang.String (RCE Successful!)');
       else if (directInput.includes("'hello'")) setDirectResult('hello');
       else if (directInput.match(/^\d+[\+\-\*\/]\d+$/)) {
         // eslint-disable-next-line no-eval
@@ -258,6 +280,281 @@ const App: React.FC = () => {
               >
                 生成靶场环境 &gt;
               </button>
+            </div>
+          </div>
+        );
+
+      case View.DESIGN_DOCS:
+        return (
+          <div className="max-w-4xl mx-auto bg-[#0a0a0a]">
+            <div className="mb-10 text-center border-b border-gray-800 pb-8">
+              <h1 className="text-4xl font-bold text-white mb-2">SpEL 注入漏洞靶场设计文档</h1>
+              <p className="text-gray-500">System Design & Implementation Report</p>
+            </div>
+
+            {/* 1. 概要 */}
+            <DocSection title="1. 概要 (Overview)">
+              <p>
+                <strong>渗透测试 (Penetration Testing)</strong> 是一种通过模拟恶意黑客的攻击方法，来评估计算机网络系统安全性的评估方法。其目的是发现系统中的安全漏洞，验证现有安全措施的有效性，并提供修复建议。
+              </p>
+              <p>
+                设计本靶场的目的在于提供一个安全、合法且可控的实验环境。在真实网络中进行攻击是违法的，因此构建一个包含特定漏洞（如 SpEL 注入）和提权路径（如 SUID/Capabilities）的 Docker 容器，可以帮助网络安全学习者深入理解漏洞原理、掌握利用技术，并提升实战能力。本系统基于 Spring Boot 开发，完整模拟了从 Web 入口到 Linux Root 权限获取的全过程。
+              </p>
+            </DocSection>
+
+            {/* 2. 技术简介 */}
+            <DocSection title="2. 技术简介 (Technical Introduction)">
+               <h3 className="text-lg font-bold text-white mt-4 mb-2">端口扫描技术</h3>
+               <p>
+                 端口扫描是渗透测试的第一步，通过向目标主机的 TCP/UDP 端口发送探测数据包，根据返回的响应判断端口状态（开放、关闭、过滤）。本项目中使用 Nmap 等工具来发现目标开放的 8080 (HTTP) 端口。
+               </p>
+
+               <h3 className="text-lg font-bold text-white mt-4 mb-2">目录爆破</h3>
+               <p>
+                 目录爆破利用字典文件对 Web 服务器的路径进行枚举请求，以发现未在页面中直接链接的隐藏资源（如 <code>/admin</code>, <code>/api</code>）。常用工具包括 Dirb, Gobuster 等。
+               </p>
+
+               <h3 className="text-lg font-bold text-white mt-4 mb-2">核心漏洞原理 (SpEL Injection & Log4j)</h3>
+               <p>
+                 类似于著名的 <strong>Log4j</strong> 漏洞（JNDI 注入），<strong>SpEL (Spring Expression Language) 注入</strong> 也是一种表达式语言注入漏洞。当应用程序将用户可控的输入未经严格过滤直接传递给 <code>ExpressionParser.parseExpression()</code> 方法时，攻击者可构造恶意表达式（如 <code>T(Runtime).getRuntime().exec()</code>）在服务器端执行任意 Java 代码，进而控制服务器。Log4j 利用了日志插值，而 SpEL 利用了框架的动态求值特性，两者的危害等级通常都为 Critical (RCE)。
+               </p>
+            </DocSection>
+
+            {/* 3. 需求分析 */}
+            <DocSection title="3. 需求分析 (Requirements Analysis)">
+              <h3 className="text-lg font-bold text-white mt-4 mb-2">(1) 功能需求分析</h3>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li><strong>信息搜集能力:</strong> 学习者需能通过端口扫描发现服务，通过目录爆破发现 <code>/spel/vuln/*</code> 接口。</li>
+                <li><strong>漏洞验证能力:</strong> 学习者需掌握 SpEL 基础语法，验证漏洞存在（如执行算术运算）。</li>
+                <li><strong>WAF 绕过能力:</strong> 针对黑名单过滤，学习者需掌握反射 (Reflection) 或 字符串拼接技术。</li>
+                <li><strong>提权能力:</strong> 学习者在获得低权限 Shell 后，需识别系统配置错误（SUID, Cron, Capabilities）并完成提权。</li>
+              </ul>
+
+              <h3 className="text-lg font-bold text-white mt-6 mb-4">(2) 系统用例设计 (System Use Case)</h3>
+              <p className="mb-4">
+                本系统主要参与者为“渗透测试学习者”。系统提供多个攻击面供用户交互。
+              </p>
+              
+              <DiagramBox title="图 3-1 渗透测试用户用例图">
+                <div className="flex flex-col items-center w-full max-w-lg">
+                  {/* Actor */}
+                  <div className="flex flex-col items-center mb-8">
+                     <div className="w-8 h-8 rounded-full border-2 border-kali-blue bg-black mb-1"></div>
+                     <div className="w-0.5 h-6 bg-kali-blue mb-1 relative">
+                        <div className="absolute top-2 -left-3 w-6 h-0.5 bg-kali-blue"></div>
+                     </div>
+                     <div className="w-0.5 h-6 bg-kali-blue relative rotate-45 origin-top left-[-3px]"></div>
+                     <div className="w-0.5 h-6 bg-kali-blue relative -rotate-45 origin-top left-[3px] top-[-24px]"></div>
+                     <span className="text-kali-blue font-bold mt-[-20px]">渗透测试学习者</span>
+                  </div>
+
+                  {/* Use Cases */}
+                  <div className="border-2 border-gray-700 p-6 rounded-lg w-full relative">
+                    <span className="absolute -top-3 left-4 bg-[#151515] px-2 text-gray-500 text-xs">SpEL 靶场系统</span>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {['端口扫描 (Port Scan)', '目录爆破 (Dir Busting)', 'Web 漏洞利用 (Exploit)', 'Shell 交互 (Netcat)', 'SUID 提权', 'Cron 提权'].map((uc, i) => (
+                        <div key={i} className="border border-kali-blue/50 rounded-full py-2 px-4 text-center text-xs text-gray-300 shadow-[0_0_10px_rgba(43,132,234,0.1)]">
+                          {uc}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lines (Visual only) */}
+                  <div className="absolute top-[80px] w-px h-10 bg-gradient-to-b from-kali-blue to-transparent opacity-50"></div>
+                </div>
+              </DiagramBox>
+            </DocSection>
+
+            {/* 4. 系统设计 */}
+            <DocSection title="4. 系统设计 (System Design)">
+              <h3 className="text-lg font-bold text-white mt-4 mb-2">(1) 架构设计</h3>
+              <p>
+                系统采用 <strong>Docker 容器化架构</strong>，运行在 Linux (Kali/Ubuntu) 宿主机上。
+                核心服务为一个基于 Spring Boot 的 Java Web 应用，后端连接 MySQL 5.7 数据库。
+                OS 层基于 Alpine Linux，并在其中预置了特定的提权漏洞环境。
+              </p>
+
+              <h3 className="text-lg font-bold text-white mt-6 mb-2">(2) 功能模块划分 (8个模块)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="border border-blue-900/50 bg-blue-900/10 p-4 rounded">
+                  <h4 className="text-blue-400 font-bold mb-2">A. 信息搜集阶段</h4>
+                  <ul className="text-sm space-y-1 text-gray-400">
+                    <li>1. 端口开放模块 (Port 8080)</li>
+                    <li>2. 目录结构暴露模块 (/spel/*)</li>
+                    <li>3. 错误信息泄露模块 (Stacktrace)</li>
+                  </ul>
+                </div>
+                <div className="border border-yellow-900/50 bg-yellow-900/10 p-4 rounded">
+                  <h4 className="text-yellow-400 font-bold mb-2">B. 漏洞利用阶段</h4>
+                  <ul className="text-sm space-y-1 text-gray-400">
+                    <li>4. 直接注入模块 (Direct)</li>
+                    <li>5. 拼接注入模块 (Concat)</li>
+                    <li>6. WAF 过滤/绕过模块 (Bypass)</li>
+                  </ul>
+                </div>
+                <div className="border border-red-900/50 bg-red-900/10 p-4 rounded">
+                  <h4 className="text-red-400 font-bold mb-2">C. 权限提升阶段</h4>
+                  <ul className="text-sm space-y-1 text-gray-400">
+                    <li>7. SUID 配置错误模块 (find)</li>
+                    <li>8. Capabilities 提权模块 (python3)</li>
+                  </ul>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-bold text-white mt-6 mb-2">(3) 系统流程设计</h3>
+              <p className="text-sm text-gray-400 mb-4">以下展示“漏洞利用阶段”的核心数据流。</p>
+              
+              <DiagramBox title="图 4-1 漏洞利用阶段流程图">
+                 <div className="flex items-center gap-2 text-xs">
+                    <div className="bg-gray-800 p-2 rounded border border-gray-600">攻击者输入 Payload</div>
+                    <div className="text-gray-500">──HTTP GET──▶</div>
+                    <div className="bg-blue-900/30 p-2 rounded border border-blue-600">
+                       <div>SpelController</div>
+                       <div className="text-[10px] text-gray-400">检查黑名单?</div>
+                    </div>
+                    <div className="text-gray-500">──通过──▶</div>
+                    <div className="bg-yellow-900/30 p-2 rounded border border-yellow-600">
+                       <div>SpelExpressionParser</div>
+                       <div className="text-[10px] text-gray-400">Expression.getValue()</div>
+                    </div>
+                    <div className="text-gray-500">──执行──▶</div>
+                    <div className="bg-red-900/30 p-2 rounded border border-red-600">
+                       <div>System Runtime</div>
+                       <div className="text-[10px] text-gray-400">exec(cmd)</div>
+                    </div>
+                 </div>
+              </DiagramBox>
+
+              <h3 className="text-lg font-bold text-white mt-6 mb-2">(4) 数据库设计</h3>
+              <p className="mb-2">系统核心表 <code>search_logs</code> 用于记录所有注入尝试，既是业务功能，也是为了演示 SQL 与 Java 应用的交互。</p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm text-left text-gray-400 border border-gray-700">
+                  <thead className="bg-gray-800 text-gray-200 uppercase">
+                    <tr>
+                      <th className="px-4 py-2">字段名</th>
+                      <th className="px-4 py-2">类型</th>
+                      <th className="px-4 py-2">说明</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    <tr><td className="px-4 py-2 font-mono">id</td><td className="px-4 py-2">INT (PK)</td><td>自增主键</td></tr>
+                    <tr><td className="px-4 py-2 font-mono">expression</td><td className="px-4 py-2">VARCHAR(255)</td><td>用户输入的 Payload</td></tr>
+                    <tr><td className="px-4 py-2 font-mono">result</td><td className="px-4 py-2">VARCHAR(255)</td><td>执行结果或报错</td></tr>
+                    <tr><td className="px-4 py-2 font-mono">ip_address</td><td className="px-4 py-2">VARCHAR(50)</td><td>来源 IP</td></tr>
+                    <tr><td className="px-4 py-2 font-mono">created_at</td><td className="px-4 py-2">TIMESTAMP</td><td>记录时间</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </DocSection>
+
+            {/* 5. 靶机实现 */}
+            <DocSection title="5. 靶机实现 (Implementation)">
+              <h3 className="text-lg font-bold text-white mt-4 mb-2">核心逻辑时序图 (Sequence Diagram)</h3>
+              <DiagramBox title="图 5-1 SpEL 注入处理时序图">
+                <div className="flex flex-col gap-4 w-3/4">
+                  <div className="flex justify-between border-b border-gray-700 pb-2 mb-2 font-bold text-white">
+                    <span>User</span>
+                    <span>Controller</span>
+                    <span>SpEL Parser</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-400">
+                    <span>1. GET /bypass?expression=T(Runtime)...</span>
+                    <span className="flex-1 h-px bg-gray-600 mx-2 relative">
+                      <span className="absolute right-0 -top-1">▶</span>
+                    </span>
+                    <span></span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-400">
+                    <span></span>
+                    <span className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-black font-bold mx-auto z-10">Logic</span>
+                    <span></span>
+                  </div>
+                  <div className="text-center text-[10px] text-yellow-500 my-[-10px]">Security Check (Blacklist)</div>
+                  <div className="flex justify-between items-center text-xs text-gray-400">
+                    <span></span>
+                    <span className="flex-1 h-px bg-gray-600 mx-2 relative">
+                      <span className="absolute right-0 -top-1">▶</span>
+                    </span>
+                    <span>2. parseExpression()</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-400">
+                    <span></span>
+                    <span className="flex-1 h-px bg-dashed bg-gray-600 mx-2 relative">
+                      <span className="absolute left-0 -top-1">◀</span>
+                    </span>
+                    <span>3. Return Result (Process/String)</span>
+                  </div>
+                </div>
+              </DiagramBox>
+
+              <h3 className="text-lg font-bold text-white mt-6 mb-2">设计与实现说明</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-kali-blue font-bold">A. 漏洞环境 (Spring Boot)</h4>
+                  <p className="text-sm">
+                    使用 <code>SpelExpressionParser</code> 模拟真实业务场景。为了增加挑战性，在 <code>/bypass</code> 接口实现了简单的 WAF 逻辑，
+                    通过遍历 <code>Arrays.asList("runtime", "exec"...)</code> 黑名单来拦截基础攻击。这迫使学习者使用 Java 反射 (Reflection) 或 
+                    <code>ScriptEngineManager</code> 来绕过关键字检测。
+                  </p>
+                </div>
+                
+                <div>
+                  <h4 className="text-kali-blue font-bold">B. 提权陷阱 (Privilege Escalation)</h4>
+                  <p className="text-sm">
+                    为了模拟企业内部常见的配置疏忽，我们在构建 Docker 镜像时预置了几个特定的不安全配置。
+                    例如 <strong>Capabilities 提权</strong>：
+                  </p>
+                  <CodeViewer filename="setup_caps.sh" code={`# 关键实现代码
+TARGET=$(readlink -f /usr/bin/python3)
+# 给 python3 赋予 setuid 能力，允许非 root 用户以 root 身份运行代码
+setcap cap_setuid+ep "$TARGET"`} language="bash" />
+                  <p className="text-sm mt-2">
+                    设计思路：现在的 Linux 发行版越来越安全，传统的内核漏洞提权越来越难。而 Capabilities（Linux内核能力）配置错误是现代容器环境中常见的提权路径。
+                    我们通过给 python3 设置 <code>cap_setuid</code>，让学习者体验这种现代提权技术。
+                  </p>
+                </div>
+              </div>
+            </DocSection>
+
+            {/* 6. 靶机测试 */}
+            <DocSection title="6. 靶机测试 (Validation)">
+               <p className="mb-4">以下是对靶场主要功能的验证测试记录。</p>
+               
+               <div className="space-y-4">
+                 <div className="bg-black border border-gray-800 p-4 rounded">
+                   <h4 className="text-green-500 font-mono text-sm mb-2">TEST 1: 端口扫描验证</h4>
+                   <p className="text-gray-400 text-xs mb-2">执行命令: <code>nmap -p 8080 127.0.0.1</code></p>
+                   <div className="font-mono text-xs text-gray-500">
+                     PORT     STATE SERVICE<br/>
+                     8080/tcp open  http-proxy
+                   </div>
+                   <div className="mt-2 text-green-400 text-xs font-bold">[PASS] 成功发现服务端口</div>
+                 </div>
+
+                 <div className="bg-black border border-gray-800 p-4 rounded">
+                   <h4 className="text-green-500 font-mono text-sm mb-2">TEST 2: 漏洞触发验证 (Level 1)</h4>
+                   <p className="text-gray-400 text-xs mb-2">Payload: <code>T(java.lang.Runtime).getRuntime().exec('id')</code></p>
+                   <div className="font-mono text-xs text-gray-500">
+                     Response: Error: EL1001E: Type conversion problem...
+                   </div>
+                   <div className="mt-2 text-green-400 text-xs font-bold">[PASS] 成功触发 RCE (通过报错确认代码已执行)</div>
+                 </div>
+
+                 <div className="bg-black border border-gray-800 p-4 rounded">
+                   <h4 className="text-green-500 font-mono text-sm mb-2">TEST 3: 提权验证</h4>
+                   <p className="text-gray-400 text-xs mb-2">Command: <code>python3 -c 'import os; os.setuid(0); os.system("id")'</code></p>
+                   <div className="font-mono text-xs text-gray-500">
+                     uid=0(root) gid=0(root) groups=0(root)
+                   </div>
+                   <div className="mt-2 text-green-400 text-xs font-bold">[PASS] 成功从 app 用户提权至 root</div>
+                 </div>
+               </div>
+            </DocSection>
+
+            <div className="text-center text-gray-600 text-sm mt-12 pb-8">
+               &copy; 2023-2024 SpEL Injection Lab Project. All Rights Reserved.
             </div>
           </div>
         );
@@ -422,7 +719,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="p-4 bg-black border border-gray-800 rounded font-mono text-sm">
                   <div className="text-gray-500 text-xs mb-1">服务器响应:</div>
-                  <div className="text-green-500 min-h-[20px]">
+                  <div className="text-green-500 min-h-[20px] whitespace-pre-wrap break-all">
                     {directResult || "等待输入..."}
                   </div>
                 </div>
@@ -435,7 +732,8 @@ const App: React.FC = () => {
                 "SpEL 表达式可以做数学运算: 1+1",
                 "字符串必须加引号: 'hello'",
                 "使用 T(...) 访问 Java 类型",
-                "Runtime.exec() 是最终目标"
+                "如果返回 'Type conversion problem' 且你是 RCE Payload，说明攻击成功了！",
+                "ProcessBuilder.start() 返回的是 Process 对象，无法直接转为 String。"
               ]}
               payloads={[
                 { label: "数学测试", code: "100*5" },

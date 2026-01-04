@@ -521,6 +521,12 @@ parser.parseExpression(userInput).getValue();
 T(java.lang.Runtime).getRuntime().exec("id")
 \`\`\`
 
+> **❓ 常见问题: EL1001E Error**
+> 如果你在执行 \`ProcessBuilder\` 或 \`Runtime.exec\` Payload 后看到网页返回：
+> \`Error: EL1001E: Type conversion problem, cannot convert from java.lang.UNIXProcess to java.lang.String\`
+> **恭喜你！这说明攻击成功了。**
+> 原因：代码执行成功了 (反弹Shell已启动)，但 Java 试图把 Process 对象强制转为 String 显示在网页上失败了。检查你的 NC 监听窗口，你应该已经拿到了 Shell。
+
 ### Level 2: 拼接注入
 **目标**: 输入被拼接在字符串中 \`"Hello, ('" + input + "')!"\`。
 **技巧**: 使用 \`') + ... + ('\` 闭合字符串上下文。
@@ -600,22 +606,47 @@ T(java.lang.Thread).sleep(5000)
 
 ## 6. 制作 OVA 靶机文件 (Sharing)
 
-如果你想把这个环境打包发给朋友：
+如果你想把这个环境打包发给朋友，或者发布到 VulnHub，请按照以下步骤将你的 Ubuntu 虚拟机打包。
 
-1.  **确保 Docker 在运行**: 
-    在 Ubuntu 虚拟机中，确保 \`docker ps\` 显示容器正在运行。
+### 步骤 A: 系统清理 (瘦身与隐私保护)
+在导出之前，请在 Ubuntu 虚拟机中执行清理操作，以减小体积并移除你的操作历史。
 
-2.  **清理垃圾 (可选)**:
-    \`\`\`bash
-    sudo apt clean
-    history -c
-    \`\`\`
+**1. 停止当前容器 (但保留镜像)**
+进入你的靶场目录：
+\`\`\`bash
+cd spel-lab-env
+sudo docker compose down
+\`\`\`
+> 注意：不要使用 \`rmi\` 删除镜像，否则接收者需要重新下载构建。我们只停止运行中的实例。
 
-3.  **导出虚拟机**:
-    *   关闭虚拟机: \`sudo shutdown now\`
-    *   在 VirtualBox / VMware 管理界面中，右键点击该虚拟机 -> **导出 (Export Appliance)**。
-    *   选择格式为 Open Virtualization Format 2.0 (.ova)。
+**2. 清理系统缓存**
+\`\`\`bash
+# 清理 apt 缓存
+sudo apt-get clean
+sudo apt-get autoremove -y
 
-4.  **导入测试**:
-    让朋友在他们的 VirtualBox 中导入该 OVA 文件，启动后，靶场会自动随系统启动 (Docker Restart Policy: Always)。
+# 清理日志 (可选)
+sudo truncate -s 0 /var/log/*log
+\`\`\`
+
+**3. 清除命令历史 (关键)**
+防止别人按 "上箭头" 看到你的密码或操作记录。
+\`\`\`bash
+history -c
+cat /dev/null > ~/.bash_history
+exit
+\`\`\`
+
+---
+
+### 步骤 B: 导出为 OVA (以 VirtualBox 为例)
+
+1.  **关闭虚拟机**: 确保 Ubuntu 已经关机 (\`shutdown now\`)。
+2.  **选择导出**: 在 VirtualBox 管理界面，点击 **文件 (File)** -> **导出虚拟电脑 (Export Appliance)**。
+3.  **选择虚拟机**: 选中你的 Ubuntu 靶机，点击下一步。
+4.  **格式选择**: 建议选择 **Open Virtualization Format 2.0 (OVF 2.0)**。
+5.  **完成导出**: 点击写入，你会得到一个 \`.ova\` 文件。
+
+### 步骤 C: 验证
+让朋友导入这个 OVA 文件。由于我们在 \`docker-compose.yml\` 中配置了 \`restart: always\`，当他们启动虚拟机时，SpEL 靶场容器会自动随 Docker 服务启动，无需他们手动运行任何命令！
 `;
