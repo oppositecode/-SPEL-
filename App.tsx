@@ -274,24 +274,124 @@ const App: React.FC = () => {
              
              <div className="bg-yellow-900/20 border-l-4 border-yellow-500 p-4 text-yellow-200 text-sm">
                <strong>注意：</strong> 以下脚本将在你的本地 Docker 中启动一个<strong>真正的漏洞容器</strong>。
-               请确保仅在受控的虚拟机（如 Kali Linux）中运行，不要在生产环境或公网暴露此服务。
+               请确保仅在受控的虚拟机（如 Kali Linux 或 Ubuntu）中运行。
              </div>
 
+             <div className="bg-blue-900/20 border-l-4 border-blue-500 p-4 text-blue-200 text-sm mt-4">
+                <strong>ℹ️ 目录说明：</strong> 脚本运行成功后，会在当前目录下生成名为 <code>spel-lab-env</code> 的文件夹。
+                这是靶场的完整源代码和配置文件所在位置。如果需要查看日志或手工修改配置，请进入该目录：<code>cd spel-lab-env</code>。
+             </div>
+
+             <div className="bg-red-900/20 border-l-4 border-red-500 p-4 text-red-200 text-sm mt-4 rounded">
+              <h4 className="font-bold text-red-300 flex items-center mb-2">
+                 ⚠️ 无法拉取镜像？ (Context deadline exceeded)
+              </h4>
+              <p className="mb-2">
+                如果遇到 <code>context deadline exceeded</code> 或下载卡住，请在运行脚本时<strong>选择 'y' </strong>以配置国内镜像加速器。
+                脚本会自动配置 <code>daemon.json</code> 并重启 Docker 服务。
+              </p>
+            </div>
+
              <div className="space-y-4">
-               <h3 className="font-bold text-white text-lg">如何像打 CTF 靶机一样使用它？</h3>
-               <ol className="list-decimal list-inside space-y-2 text-gray-400 text-sm">
-                 <li>复制下方脚本到 Kali Linux 并运行。</li>
-                 <li>脚本会自动拉取 Java 环境、编译代码并启动 Docker 容器。</li>
-                 <li>一旦看到 <span className="text-green-400 font-mono">[SUCCESS]</span>，这台机器就“上线”了。</li>
-                 <li><strong>把你刚刚学到的忘掉</strong>。假装你不知道 IP，不知道漏洞在哪。</li>
-                 <li>使用 <code className="bg-gray-800 px-1 rounded">nmap</code> 扫描本机或 Docker IP。</li>
-                 <li>自己发现漏洞，自己构造 Payload，直到拿到 Root Flag。</li>
+               <h3 className="font-bold text-white text-lg">🚀 启动步骤 (Linux/Mac)</h3>
+               <ol className="list-decimal list-inside space-y-3 text-gray-300 text-sm">
+                 <li>新建文件 <code>install_lab.sh</code> 并粘贴下方代码。</li>
+                 <li>
+                    <span className="text-yellow-400 font-bold">赋予执行权限 (关键)</span>: 
+                    <code className="bg-gray-800 px-2 py-1 ml-2 rounded text-white font-mono border border-gray-700">chmod +x install_lab.sh</code>
+                 </li>
+                 <li>
+                    <span className="text-red-400 font-bold">使用管理员运行</span>: 
+                    <code className="bg-gray-800 px-2 py-1 ml-2 rounded text-white font-mono border border-gray-700">sudo ./install_lab.sh</code>
+                 </li>
+                 <li>脚本启动时，输入 <strong>y</strong> 并回车来应用网络修复。</li>
+                 <li>看到 <span className="text-green-400 font-mono">[SUCCESS]</span> 或 <span className="text-green-400 font-mono">Good Luck</span> 后即可开始攻击。</li>
                </ol>
              </div>
 
              <div className="space-y-2 mt-6">
                <h3 className="font-bold text-white">一键安装脚本 (install_lab.sh)</h3>
                <CodeViewer filename="install_lab.sh" code={BUILD_SCRIPT} language="bash" />
+             </div>
+
+             {/* Troubleshooting Section */}
+             <div className="mt-8 border border-red-900/50 bg-[#1a0505] rounded-lg overflow-hidden">
+                <div className="bg-red-900/30 px-4 py-3 border-b border-red-900/50 flex items-center gap-2">
+                  <span className="text-xl">🔧</span>
+                  <h3 className="font-bold text-red-300">故障排查 (Troubleshooting)</h3>
+                </div>
+                <div className="p-6 space-y-6">
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                       <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">🔴 现象：连接失败 / Connection Refused</h4>
+                       <p className="text-gray-400 text-sm mb-4">
+                         浏览器显示“无法建立连接”，即使脚本已运行完毕。
+                       </p>
+                       <div className="bg-black p-3 rounded border border-gray-800 font-mono text-xs text-gray-300">
+                         <div className="mb-2 text-yellow-500">原因 1: Spring Boot 启动慢 (最常见)</div>
+                         <p className="mb-2 text-gray-500">Java 应用需要 20-40秒 才能完成初始化并监听端口。请耐心等待。</p>
+                         
+                         <div className="mb-2 text-yellow-500">原因 2: 容器退出了</div>
+                         <div className="mb-2">查看实时日志以确认状态:</div>
+                         <code className="block text-green-400">sudo docker logs -f spel-lab-env-spel_app-1</code>
+                         <p className="mt-2 text-gray-500">直到看到 "Started SpelLabApplication" 才是启动完成。</p>
+                       </div>
+                    </div>
+
+                    <div>
+                       <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">🟠 现象：Permission Denied</h4>
+                       <p className="text-gray-400 text-sm mb-4">
+                         执行 docker 命令时提示权限不足。这是因为当前用户不在 docker 组。
+                       </p>
+                       <div className="bg-black p-3 rounded border border-gray-800 font-mono text-xs text-gray-300">
+                         <div className="mb-2"># 临时解决方案：在命令前加 sudo</div>
+                         <code className="block text-green-400 mb-3">sudo docker ps</code>
+                         
+                         <div className="mb-2"># 永久解决方案 (需注销重登)</div>
+                         <code className="block text-green-400">sudo usermod -aG docker $USER</code>
+                       </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-800 pt-4">
+                    <h4 className="text-white font-bold mb-2 text-sm">常见日志错误解析</h4>
+                    <ul className="text-xs space-y-2 text-gray-400 font-mono">
+                       <li><span className="text-red-400">Connection refused (in logs)</span>: 数据库未就绪。脚本会自动重试，无需干预。</li>
+                       <li><span className="text-red-400">Error: Invalid or corrupt jarfile</span>: Maven 构建失败。请重新运行脚本。</li>
+                       <li><span className="text-red-400">Bind for 0.0.0.0:8080 failed</span>: 端口 8080 被占用。请关闭其他服务。</li>
+                    </ul>
+                  </div>
+
+                </div>
+             </div>
+
+             <div className="mt-8 p-6 bg-green-900/10 border border-green-500/30 rounded-lg">
+               <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center">
+                 ✅ 部署成功后 (Next Steps)
+               </h3>
+               <p className="text-gray-400 text-sm mb-4">当终端出现 "Good Luck, Have Fun." 且 <code>docker ps</code> 显示容器 Up 时，说明靶场运行正常。</p>
+               <ul className="space-y-4 text-gray-300">
+                 <li className="flex items-start gap-3">
+                   <span className="bg-green-800 text-green-200 text-xs font-bold px-2 py-1 rounded mt-1">1</span>
+                   <div>
+                     <strong className="text-white block">连接靶机</strong>
+                     <p className="text-sm text-gray-500 mb-2">点击下方链接测试连接（应返回 Hello 消息）：</p>
+                     <a href="http://127.0.0.1:8080/spel/vuln/direct?expression='hello'" target="_blank" rel="noopener noreferrer" className="text-kali-accent hover:underline text-sm font-mono bg-black px-2 py-1 rounded border border-gray-700 block w-fit">
+                       http://127.0.0.1:8080/spel/vuln/direct?expression='hello'
+                     </a>
+                   </div>
+                 </li>
+                 <li className="flex items-start gap-3">
+                   <span className="bg-green-800 text-green-200 text-xs font-bold px-2 py-1 rounded mt-1">2</span>
+                   <div>
+                     <strong className="text-white block">开始黑盒渗透</strong>
+                     <p className="text-sm text-gray-500">
+                       现在靶机就是 <code>127.0.0.1:8080</code>。请切换到左侧菜单的 <span className="text-white font-bold">"完整攻略"</span> 或使用 Kali 工具链（Burp/Curl）对该端口进行真实的漏洞挖掘。
+                     </p>
+                   </div>
+                 </li>
+               </ul>
              </div>
            </div>
         );
