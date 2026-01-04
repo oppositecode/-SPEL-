@@ -23,7 +23,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ filename, code, language
           onClick={handleCopy}
           className="text-xs px-2 py-1 rounded bg-kali-blue text-white hover:bg-blue-600 transition"
         >
-          {copied ? 'Copied!' : 'Copy'}
+          {copied ? '已复制!' : '复制'}
         </button>
       </div>
       <pre className="p-4 overflow-x-auto text-sm font-mono text-gray-300 leading-relaxed">

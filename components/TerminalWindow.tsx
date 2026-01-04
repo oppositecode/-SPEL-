@@ -17,7 +17,7 @@ export const TerminalWindow: React.FC<TerminalWindowProps> = ({
   onExecute,
   isProcessing,
   promptUser = 'kali@spel-lab',
-  title = 'Terminal'
+  title = '终端 (Terminal)'
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -51,11 +51,11 @@ export const TerminalWindow: React.FC<TerminalWindowProps> = ({
             onChange={(e) => onCommandChange(e.target.value)}
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent border-none outline-none text-white focus:ring-0 p-0"
-            placeholder="Type command..."
+            placeholder="输入命令..."
             autoFocus
           />
         </div>
-        {isProcessing && <div className="text-gray-500 mt-2">Processing...</div>}
+        {isProcessing && <div className="text-gray-500 mt-2">处理中...</div>}
       </div>
     </div>
   );
